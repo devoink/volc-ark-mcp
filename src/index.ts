@@ -6,6 +6,7 @@ import { readBaseUrl, readDefaultModel, resolveApiKey } from "./config.js";
 import { runCli } from "./cli.js";
 import { MediaError, readLocalImageSize } from "./media.js";
 import { budgetDecision, estimateImage, estimateVideo, type Estimate } from "./pricing/estimate.js";
+import { presentModels } from "./models.js";
 import { attachImages, presentImages, presentTaskList, presentVideo } from "./present.js";
 import { redact } from "./redact.js";
 import { buildImageBody, buildVideoBody, type ImageRequestInput, type VideoRequestInput } from "./requests.js";
@@ -13,7 +14,7 @@ import { REPLY_GUIDE, toolResult, type ToolPayload } from "./result.js";
 import { setupGuide, setupRequired } from "./setup.js";
 
 const imageSchema = {
-  model: z.string().optional().describe("模型 ID 或 Endpoint ID。缺省时用 ARK_IMAGE_MODEL。"),
+  model: z.string().optional().describe("模型版本 ID（如 doubao-seedream-5-5-261028）或 Endpoint ID。先用 list_models 获取，不要猜。缺省时才用 ARK_IMAGE_MODEL。"),
   prompt: z.string().optional().describe("提示词。普通生图需要；图层拆分可以不传。"),
   images: z.array(z.string()).optional().describe("参考图。可以是公网 URL、asset://、data URI 或本机路径。"),
   size: z.string().optional().describe("1K、1.5K、2K，或宽x高。"),
@@ -33,7 +34,7 @@ const imageSchema = {
 };
 
 const videoSchema = {
-  model: z.string().optional().describe("模型 ID 或 Endpoint ID。缺省时用 ARK_VIDEO_MODEL。"),
+  model: z.string().optional().describe("模型版本 ID（如 doubao-seedance-2-5-260628）或 Endpoint ID。先用 list_models 获取，不要猜。缺省时才用 ARK_VIDEO_MODEL。"),
   prompt: z.string().optional(),
   images: z.array(z.object({
     source: z.string(),
@@ -206,16 +207,49 @@ async function videoEstimate(args: VideoArgs, model: string): Promise<Estimate> 
   });
 }
 
-const server = new McpServer({ name: "volc-ark-mcp", version: "0.1.0" });
+const server = new McpServer({ name: "volc-ark-mcp", version: "0.1.2" });
 
 server.registerTool("setup_guide", {
   description: "说明如何在 macOS 或 Windows 上把 ARK_API_KEY 设为系统环境变量。不需要 Key。",
   inputSchema: {},
 }, async () => toolResult(setupGuide()));
 
+server.registerTool("list_models", {
+  description: "列出当前 API Key 可见的方舟生图/生视频模型，并附带选用规则。生图或生视频前必须先调用：按用户场景看 recommended_for / pick_hint / selection_guide，再把返回的 id 传给 generate_image 或 create_video_task。不要猜模型名，也不要写死某一个默认模型。",
+  inputSchema: {
+    domain: z.enum(["ImageGeneration", "VideoGeneration", "LLM", "VLM", "3DGeneration", "Audio", "Embedding"]).optional()
+      .describe("按领域过滤。省略时默认只要生图和生视频。"),
+    use_case: z.enum([
+      "text_to_image",
+      "image_to_image",
+      "transparent_background",
+      "sequential_images",
+      "image_web_search",
+      "best_image_quality",
+      "fast_cheap_image",
+      "text_to_video",
+      "image_to_video",
+      "reference_video",
+      "best_video_quality",
+      "fast_cheap_video",
+    ]).optional().describe("按使用场景过滤候选模型。"),
+    query: z.string().optional().describe("按 id、name、version 或推荐说明模糊匹配，例如 seedream、透明。"),
+    status: z.enum(["Published", "Retiring"]).optional(),
+  },
+}, async (args) => {
+  const missing = await requireKey();
+  if (missing) return missing;
+  try {
+    const payload = await getJson({ apiKey: (await resolveApiKey())!, baseUrl: readBaseUrl() }, "/api/v3/models");
+    return toolResult(presentModels(payload, args));
+  } catch (error) {
+    return fail(error);
+  }
+});
+
 const estimateSchema = {
   modality: z.enum(["image", "video"]),
-  model: z.string().optional().describe("模型 ID。缺省时按 modality 读取 ARK_IMAGE_MODEL 或 ARK_VIDEO_MODEL。"),
+  model: z.string().optional().describe("模型版本 ID。先用 list_models 获取。缺省时按 modality 读取 ARK_IMAGE_MODEL 或 ARK_VIDEO_MODEL。"),
   prompt: z.string().optional(),
   images: z.array(z.union([
     z.string(),
@@ -252,7 +286,7 @@ server.registerTool("estimate_generation_cost", {
 }, async (args) => {
   try {
     const model = args.model || readDefaultModel(args.modality);
-    if (!model) return toolResult({ ok: false, kind: "error", error: { code: "model_required", message: "需要 model，或设置对应的 ARK_IMAGE_MODEL / ARK_VIDEO_MODEL。" } }, [], true);
+    if (!model) return toolResult({ ok: false, kind: "error", error: { code: "model_required", message: "需要 model。先调用 list_models 取 id，或设置对应的 ARK_IMAGE_MODEL / ARK_VIDEO_MODEL。" } }, [], true);
     const videoImages = (args.images ?? []).flatMap((item) => typeof item === "string" ? [] : [item]);
     const estimate = args.modality === "image"
       ? estimateImage({
@@ -286,14 +320,14 @@ server.registerTool("estimate_generation_cost", {
 });
 
 server.registerTool("generate_image", {
-  description: `同步生成图片。默认返回 24 小时内有效的 URL，并附上可显示的图像。${REPLY_GUIDE}`,
+  description: `同步生成图片。model 必须是 list_models 返回的 id，不要猜家族名。默认返回 24 小时内有效的 URL，并附上可显示的图像。${REPLY_GUIDE}`,
   inputSchema: imageSchema,
 }, async (args: ImageArgs) => {
   const missing = await requireKey();
   if (missing) return missing;
   try {
     const model = args.model || readDefaultModel("image");
-    if (!model) return toolResult({ ok: false, kind: "error", error: { code: "model_required", message: "需要 model，或设置 ARK_IMAGE_MODEL。" } }, [], true);
+    if (!model) return toolResult({ ok: false, kind: "error", error: { code: "model_required", message: "需要 model。先调用 list_models 取 id，或设置 ARK_IMAGE_MODEL。" } }, [], true);
     if (!args.prompt && !args.layer_decomposition) {
       return toolResult({ ok: false, kind: "error", error: { code: "prompt_required", message: "普通生图需要 prompt。" } }, [], true);
     }
@@ -330,14 +364,14 @@ server.registerTool("generate_image", {
 });
 
 server.registerTool("create_video_task", {
-  description: `提交视频任务并立即返回任务 ID。queued 和 running 不是失败，不要再次创建。${REPLY_GUIDE}`,
+  description: `提交视频任务并立即返回任务 ID。model 必须是 list_models 返回的 id，不要猜家族名。queued 和 running 不是失败，不要再次创建。${REPLY_GUIDE}`,
   inputSchema: videoSchema,
 }, async (args: VideoArgs) => {
   const missing = await requireKey();
   if (missing) return missing;
   try {
     const model = args.model || readDefaultModel("video");
-    if (!model) return toolResult({ ok: false, kind: "error", error: { code: "model_required", message: "需要 model，或设置 ARK_VIDEO_MODEL。" } }, [], true);
+    if (!model) return toolResult({ ok: false, kind: "error", error: { code: "model_required", message: "需要 model。先调用 list_models 取 id，或设置 ARK_VIDEO_MODEL。" } }, [], true);
     const estimate = await videoEstimate(args, model);
     const decision = budgetDecision(estimate, args.max_cny);
     if (!decision.ok) return rejectBudget(estimate, args.max_cny!, decision.reason);

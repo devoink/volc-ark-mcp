@@ -1,6 +1,6 @@
 {
   "name": "volc-ark-mcp",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "type": "module",
   "description": "本地 stdio MCP：调用火山方舟生图与 Seedance 生视频。",
   "keywords": ["mcp", "volcengine", "ark", "seedance"],

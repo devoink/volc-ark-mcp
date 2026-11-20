@@ -8,8 +8,64 @@ import { MediaError } from "../src/media.js";
 import { budgetDecision, estimateImage, estimateVideo } from "../src/pricing/estimate.js";
 import { presentImages, presentVideo } from "../src/present.js";
 import { redact } from "../src/redact.js";
+import { presentModels } from "../src/models.js";
 import { buildImageBody, buildVideoBody } from "../src/requests.js";
 import { setupSteps } from "../src/setup.js";
+
+test("list_models 默认只要生图生视频，并给出选用规则", () => {
+  const listed = presentModels({
+    object: "list",
+    data: [
+      {
+        id: "doubao-seedream-5-5-261028",
+        name: "doubao-seedream-5-5",
+        version: "261028",
+        domain: "ImageGeneration",
+        status: "Published",
+        created: 200,
+        task_type: ["text_to_image"],
+        modalities: { input_modalities: ["text", "image"], output_modalities: ["image"] },
+      },
+      {
+        id: "doubao-seedream-4-0-250828",
+        name: "doubao-seedream-4-0",
+        version: "250828",
+        domain: "ImageGeneration",
+        status: "Published",
+        created: 100,
+      },
+      {
+        id: "doubao-seedance-2-5-260628",
+        name: "doubao-seedance-2-5",
+        version: "260628",
+        domain: "VideoGeneration",
+        status: "Published",
+        created: 150,
+      },
+      {
+        id: "doubao-seed-2-1-pro-260915",
+        name: "doubao-seed-2-1-pro",
+        version: "260915",
+        domain: "VLM",
+        status: "Published",
+      },
+    ],
+  });
+  assert.equal(listed.count, 3);
+  assert.equal(listed.models[0]?.id, "doubao-seedream-5-5-261028");
+  assert.match(listed.models[0]?.pick_hint ?? "", /透明|首选/);
+  assert.equal(listed.models[0]?.capabilities?.transparent_background, true);
+  assert.ok(listed.selection_guide.length > 0);
+  const transparent = presentModels({ object: "list", data: listed.models }, { use_case: "transparent_background" });
+  assert.deepEqual(transparent.models.map((item) => item.id), ["doubao-seedream-5-5-261028"]);
+  const sequential = presentModels({ object: "list", data: listed.models }, { use_case: "sequential_images" });
+  assert.deepEqual(sequential.models.map((item) => item.id), ["doubao-seedream-4-0-250828"]);
+  const llm = presentModels({
+    object: "list",
+    data: [{ id: "doubao-seed-2-1-pro-260915", domain: "VLM", status: "Published" }],
+  }, { domain: "VLM" });
+  assert.equal(llm.count, 1);
+});
 
 test("图片请求组装组图、图层拆分和 web_search", async () => {
   const body = await buildImageBody({

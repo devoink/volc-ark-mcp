@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/volc-ark-mcp"><img alt="npm" src="https://img.shields.io/badge/npm-volc--ark--mcp-006EFF" /></a>
-  <img alt="version" src="https://img.shields.io/badge/version-0.1.1-006EFF" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.1.2-006EFF" />
   <img alt="node" src="https://img.shields.io/badge/node-%3E%3D20-00E5E5" />
   <img alt="MCP" src="https://img.shields.io/badge/MCP-stdio-00E5E5" />
 </p>
@@ -229,13 +229,14 @@ Cursor 仍使用项目里的 `node_modules/volc-ark-mcp/bin/volc-ark-mcp.js`。
 - `ARK_IMAGE_MODEL`：生图未传 `model` 时使用
 - `ARK_VIDEO_MODEL`：生视频未传 `model` 时使用
 
-模型 ID 由调用方传入，或用上面两个变量作为缺省。参数取值随模型变化，错误会原样返回方舟的 `error.code` 和 `error.message`。
+生图或生视频前应先调用 `list_models`。它返回当前 Key 可见的真实 `id`，并带上 `selection_guide`、`recommended_for`、`avoid_for`、`pick_hint`，Agent 按用户场景选型，不要猜家族名，也不要写死某一个模型。可用 `use_case`（如 `transparent_background`、`fast_cheap_video`）缩小候选。`ARK_IMAGE_MODEL` / `ARK_VIDEO_MODEL` 只是未传 `model` 时的可选缺省。参数取值随模型变化，错误会原样返回方舟的 `error.code` 和 `error.message`。
 
 ## 功能
 
 | 工具 | 作用 |
 | --- | --- |
 | `setup_guide` | 返回配置步骤，不需要 Key |
+| `list_models` | 列出当前 Key 可见的生图/生视频模型，并给出选用规则；返回可直接传给生成接口的 `id` |
 | `estimate_generation_cost` | 按公示价估算，不调用生成接口 |
 | `generate_image` | 同步生图 |
 | `create_video_task` | 提交视频任务，立即返回 ID |
