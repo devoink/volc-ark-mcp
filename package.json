@@ -5,8 +5,18 @@
   "description": "本地 stdio MCP：调用火山方舟生图与 Seedance 生视频。",
   "keywords": ["mcp", "volcengine", "ark", "seedance"],
   "files": ["bin", "src"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/devoink/volc-ark-mcp.git"
+  },
+  "homepage": "https://github.com/devoink/volc-ark-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/devoink/volc-ark-mcp/issues"
+  },
+  "author": "devoink",
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   },
   "bin": {
     "volc-ark-mcp": "./bin/volc-ark-mcp.js"

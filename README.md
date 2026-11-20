@@ -289,21 +289,18 @@ npm test
 
 ## 发布
 
-推送与 `package.json` 版本一致的标签后，GitHub Actions 会跑测试、打 npm 包，并把这个包发布到 npm，同时附带 provenance。仓库里不保存 npm token。
+推送与 `package.json` 版本一致的标签后，GitHub Actions 会跑测试、打 npm 包，并把这个包发布到 npm，同时附带 provenance。仓库里不保存 npm token。发布目标是 `https://registry.npmjs.org/`。
 
-第一次发布前，在 [npm Trusted Publisher](https://docs.npmjs.com/trusted-publishers/) 里把本仓库登记为 `volc-ark-mcp` 的发布者：
+npm 要求包先存在，才能登记可信发布者。因此 `0.1.0` 需要在已登录 npm 的机器上发布一次。之后在 [npm Trusted Publisher](https://docs.npmjs.com/trusted-publishers/) 里把 `devoink/volc-ark-mcp` 登记为发布者，工作流文件名填 `publish.yml`，并允许直接执行 `npm publish`。新建的配置要在两天内完成下一次成功发布，否则会过期。
 
-- 工作流文件名填 `publish.yml`
-- 允许直接执行 `npm publish`
-
-新建的发布者配置要在两天内完成第一次成功发布，否则会过期。之后每次发布：
+之后每次发布：
 
 1. 修改 `package.json` 的 `version` 并提交。
-2. 打上同样的标签并推送，例如版本 `0.1.0` 对应标签 `v0.1.0`。
+2. 打上同样的标签并推送，例如版本 `0.2.0` 对应标签 `v0.2.0`。
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.2.0
+git push origin v0.2.0
 ```
 
 标签和版本不一致时，工作流会停在发布之前。npm 包只包含 `bin` 和 `src`。
