@@ -109,7 +109,17 @@ export function agentChoices(env: AgentEnv, files: InstallFiles): Array<AgentTar
   }));
 }
 
-export async function runInstall(args: string[], env: AgentEnv, files: InstallFiles, style: Paint, stdout: (text: string) => void, stderr: (text: string) => void, prompt?: (label: string) => Promise<string>, interactive = false): Promise<number> {
+export async function runInstall(
+  args: string[],
+  env: AgentEnv,
+  files: InstallFiles,
+  style: Paint,
+  stdout: (text: string) => void,
+  stderr: (text: string) => void,
+  prompt?: (label: string) => Promise<string>,
+  interactive = false,
+  keySaved = false,
+): Promise<number> {
   const parsed = parseInstallArgs(args);
   if ("error" in parsed) {
     stderr(frame(style, [field(style, "结果", style.bad("没有写入")), parsed.error]));
@@ -154,7 +164,7 @@ export async function runInstall(args: string[], env: AgentEnv, files: InstallFi
   }
   const results = await installAgents(ids, env, files);
   const failed = results.some((result) => result.status === "failed");
-  const lines = resultRows(style, results, env);
+  const lines = resultRows(style, results, env, keySaved);
   if (failed) stderr(frame(style, lines));
   else stdout(frame(style, lines));
   return failed ? 1 : 0;
@@ -176,7 +186,7 @@ function choiceRows(style: Paint, choices: Array<AgentTarget & { detected: boole
   return rows;
 }
 
-function resultRows(style: Paint, results: InstallResult[], env: AgentEnv): string[] {
+function resultRows(style: Paint, results: InstallResult[], env: AgentEnv, keySaved: boolean): string[] {
   const failed = results.filter((result) => result.status === "failed").length;
   const written = results.some((result) => result.status === "written");
   const headline = failed === results.length ? style.bad("没有写入") : failed ? style.warn("部分未写入") : written ? style.ok("已写入") : style.ok("已存在");
@@ -190,7 +200,9 @@ function resultRows(style: Paint, results: InstallResult[], env: AgentEnv): stri
     if (result.path) rows.push(style.dim(`  ${displayPath(result.path, env)}`));
     if (result.message) rows.push(style.dim(`  ${result.message}`));
   }
-  rows.push("", style.dim("配置里没有 Key。重启对应 Agent 后生效。"));
+  rows.push("", style.dim(keySaved
+    ? "Key 已可用，不会写入配置。重启对应 Agent 后生效。"
+    : "还没有保存 Key。先运行 npx volc-ark-mcp config set，再重启对应 Agent。"));
   return rows;
 }
 

@@ -43,6 +43,7 @@ export async function runCli(argv: string[], deps: CliDeps = {}): Promise<number
   }
   if (group === "install") {
     const interactive = deps.prompt !== undefined || (deps.files === undefined && deps.stdout === undefined && Boolean(process.stdin.isTTY));
+    const keySaved = Boolean(envKey?.trim()) || Boolean(await store.get());
     return runInstall(
       argv.slice(1),
       currentAgentEnv({ home: deps.home, platform, appData: deps.appData, xdgConfigHome: deps.xdgConfigHome }),
@@ -52,6 +53,7 @@ export async function runCli(argv: string[], deps: CliDeps = {}): Promise<number
       stderr,
       deps.prompt ?? (interactive ? promptLine : undefined),
       interactive,
+      keySaved,
     );
   }
   if (group !== "config" || extra !== undefined || !action) {

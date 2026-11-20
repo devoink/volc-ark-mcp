@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/volc-ark-mcp"><img alt="npm" src="https://img.shields.io/badge/npm-volc--ark--mcp-006EFF" /></a>
-  <img alt="version" src="https://img.shields.io/badge/version-0.1.0-006EFF" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.1.1-006EFF" />
   <img alt="node" src="https://img.shields.io/badge/node-%3E%3D20-00E5E5" />
   <img alt="MCP" src="https://img.shields.io/badge/MCP-stdio-00E5E5" />
 </p>
@@ -19,49 +19,55 @@
 
 ## 安装和使用
 
-先选一种安装方式。保存 Key、检查连通和启动 MCP 用的是同一套子命令，只是前面的启动方式不同。Key 存在系统凭据库里，换一种方式启动也能读到。
+### 推荐用法
 
-| 子命令 | 作用 |
+日常推荐用 `npx`，不必先全局安装。Key 写进系统凭据库，Agent 配置里只写启动命令，不写 Key，也不写 `env`。
+
+#### 命令说明
+
+| 命令 | 作用 |
 | --- | --- |
-| `config set` | 交互输入 Key 并写入凭据库。输入不回显，不要把 Key 写在命令后面 |
-| `config list` | 查看是否已保存，不显示 Key |
-| `config delete` | 从凭据库删除 Key |
-| `test` | 用已保存的 Key 检查能否连通方舟 |
-| `install` | 选择多个 Agent，一次写入各自的 MCP 配置 |
-| 不带参数 | 启动 MCP，供 Agent 连接 |
+| `config set` | 交互输入方舟 API Key，写入系统凭据库。输入不回显；不要把 Key 写在命令后面 |
+| `config list` | 查看 Key 是否已保存，以及来自凭据库还是当前进程环境变量。不打印 Key 本身 |
+| `config delete` | 从系统凭据库删除已保存的 Key。不会改各 Agent 的 MCP 配置 |
+| `test` | 用已保存的 Key 请求方舟，检查能否连通。不提交生图或生视频任务 |
+| `install` | 把本 MCP 的启动命令写进所选 Agent 的用户级配置。不写 Key，不写 `env` |
+| `install <id…>` | 同上，但直接指定一个或多个 Agent，例如 `install cursor` |
+| `install --all` | 只给本机已检测到的 Agent 写入配置 |
+| `install --list` | 列出可写入的 Agent、检测状态和配置文件路径，不写入 |
+| 不带参数 | 以 stdio 启动 MCP，供 Cursor 等 Agent 连接。一般由 Agent 拉起，不必手跑 |
 
-凭据库：macOS 用钥匙串，Windows 用凭据管理器，Linux 用 Secret Service，需要已安装 `secret-tool`。三个平台的子命令相同。
+凭据库：macOS 用钥匙串，Windows 用凭据管理器，Linux 用 Secret Service（需已安装 `secret-tool`）。三个平台的子命令相同。
 
-配置 Key：
+#### 推荐步骤
 
 1. 在[方舟控制台](https://ark.volcengine.com/region:cn-beijing/apiKey)创建 API Key。
-2. 用下面选中的方式运行 `config set`，按提示输入。
-3. 运行 `config list`。看到「已保存」即可。
-4. 运行 `test`，确认能连通方舟。
-5. 运行 `install` 选择 Agent，或按下面的说明手动配置。配置里不要写 Key，也不要写 `env`。
-6. 完全退出并重新打开对应的 Agent。
+2. 保存 Key：
 
-更换 Key 再运行一次 `config set`，然后完全退出并重新打开对应的 Agent。旧 Key 如果进过对话或终端历史，到方舟控制台作废。
+```bash
+npx -y volc-ark-mcp config set
+```
 
-从程序坞或开始菜单打开的 Agent 不一定能找到终端里的 `npx`、`pnpm` 或全局命令。找不到时，把手动配置里的 `command` 换成该命令的绝对路径，`args` 保持不变。
+3. 可选：确认状态，并检查连通：
 
-### 一键安装到多个 Agent
+```bash
+npx -y volc-ark-mcp config list
+npx -y volc-ark-mcp test
+```
 
-`install` 会把启动命令写入所选 Agent 的用户配置，不改其他服务，也不写入 Key。已有相同配置时保持不动；已有不同命令时不覆盖。
-
-交互选择，直接回车写入全部已检测到的：
+4. 写入 Agent 配置。交互选择时，直接回车写入全部已检测到的；也可以直接点名：
 
 ```bash
 npx -y volc-ark-mcp install
-```
-
-也可以直接点名，或多个一起写：
-
-```bash
+npx -y volc-ark-mcp install cursor
 npx -y volc-ark-mcp install cursor claude-code
 npx -y volc-ark-mcp install --all
 npx -y volc-ark-mcp install --list
 ```
+
+5. 完全退出并重新打开对应的 Agent。之后由 Agent 自动执行不带参数的 `npx -y volc-ark-mcp` 启动 MCP。
+
+`install` 写入的是用户级配置，启动命令固定为 `npx -y volc-ark-mcp`。已有相同配置时保持不动；已有不同命令时不覆盖。换 Key 再跑一次 `config set`，然后重启 Agent。删除 Key 用 `config delete`。旧 Key 如果进过对话或终端历史，到方舟控制台作废。
 
 | id | Agent | 配置文件 |
 | --- | --- | --- |
@@ -75,32 +81,13 @@ npx -y volc-ark-mcp install --list
 | `codex` | Codex | `~/.codex/config.toml` |
 | `opencode` | OpenCode | `~/.config/opencode/opencode.json` |
 
-一键写入的启动命令是 `npx -y volc-ark-mcp`。写入后完全退出并重新打开对应的 Agent。
+从程序坞或开始菜单打开的 Agent 不一定能找到终端里的 `npx`。找不到时，把手动配置里的 `command` 换成 `npx` 的绝对路径，`args` 保持不变。
 
-### 手动配置
+### 其他安装方式
 
-下面按安装方式给出 Cursor 的手动配置。其他 Agent 的文件位置见上表，字段名以各 Agent 自己的格式为准：Cursor、Claude、Windsurf、Gemini CLI 用 `mcpServers`；VS Code 用 `servers`；OpenCode 用 `mcp.servers`；Codex 用 `[mcp_servers.volc-ark-mcp]`。都不要写 Key，也不要写 `env`。
+一般不需要。只有你更想用全局命令、项目内依赖，或要手改配置时，再看这一节。保存 Key、检查连通和启动 MCP 仍是同一套子命令，只是前面的启动方式不同；Key 在凭据库里，换一种方式启动也能读到。
 
-#### npx
-
-不提前安装。每次从 npm 取包并运行。
-
-```bash
-npx -y volc-ark-mcp config set
-npx -y volc-ark-mcp config list
-npx -y volc-ark-mcp test
-```
-
-```json
-{
-  "mcpServers": {
-    "volc-ark-mcp": {
-      "command": "npx",
-      "args": ["-y", "volc-ark-mcp"]
-    }
-  }
-}
-```
+其他 Agent 的文件位置见上表，字段名以各 Agent 自己的格式为准：Cursor、Claude、Windsurf、Gemini CLI 用 `mcpServers`；VS Code 用 `servers`；OpenCode 用 `mcp.servers`；Codex 用 `[mcp_servers.volc-ark-mcp]`。都不要写 Key，也不要写 `env`。
 
 #### npm 全局安装
 
@@ -111,6 +98,7 @@ npm install -g volc-ark-mcp
 volc-ark-mcp config set
 volc-ark-mcp config list
 volc-ark-mcp test
+volc-ark-mcp install
 ```
 
 ```json
@@ -145,7 +133,7 @@ npx volc-ark-mcp test
 }
 ```
 
-把 `/项目绝对路径` 换成这个项目在本机上的路径。
+把 `/项目绝对路径` 换成这个项目在本机上的路径。项目级 MCP 配置需自行写入，`install` 只写用户级配置。
 
 #### pnpm
 
@@ -153,8 +141,8 @@ npx volc-ark-mcp test
 
 ```bash
 pnpm dlx volc-ark-mcp config set
-pnpm dlx volc-ark-mcp config list
 pnpm dlx volc-ark-mcp test
+pnpm dlx volc-ark-mcp install
 ```
 
 ```json
@@ -173,6 +161,7 @@ pnpm dlx volc-ark-mcp test
 ```bash
 pnpm add -g volc-ark-mcp
 volc-ark-mcp config set
+volc-ark-mcp install
 ```
 
 Cursor 配置与 npm 全局安装相同，`command` 为 `volc-ark-mcp`。
@@ -192,8 +181,8 @@ Yarn 2 及以上用 `dlx`：
 
 ```bash
 yarn dlx volc-ark-mcp config set
-yarn dlx volc-ark-mcp config list
 yarn dlx volc-ark-mcp test
+yarn dlx volc-ark-mcp install
 ```
 
 ```json
@@ -212,6 +201,7 @@ Yarn 1 没有 `dlx`，用全局安装：
 ```bash
 yarn global add volc-ark-mcp
 volc-ark-mcp config set
+volc-ark-mcp install
 ```
 
 Cursor 配置与 npm 全局安装相同。

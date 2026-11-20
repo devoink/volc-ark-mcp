@@ -85,6 +85,15 @@ test("Windows 上 Claude Desktop 写到凭据目录旁的配置", () => {
   assert.equal(target?.configPath, "C:\\Users\\me\\AppData\\Roaming\\Claude\\claude_desktop_config.json");
 });
 
+function emptyCreds() {
+  return {
+    backend: "keychain" as const,
+    async get() { return undefined; },
+    async set() {},
+    async delete() {},
+  };
+}
+
 test("install 只写入点名的 Agent", async () => {
   const store = memory([`${HOME}/.cursor`]);
   let output = "";
@@ -92,6 +101,7 @@ test("install 只写入点名的 Agent", async () => {
     home: HOME,
     platform: "darwin",
     envKey: "",
+    store: emptyCreds(),
     files: store,
     stdout: (text) => { output += text; },
     stderr: (text) => { output += text; },
@@ -103,6 +113,29 @@ test("install 只写入点名的 Agent", async () => {
   assert.ok(claude.mcpServers["volc-ark-mcp"]);
   assert.equal(output.includes(KEY), false);
   assert.match(output, /已写入/);
+  assert.match(output, /还没有保存 Key/);
+  assert.match(output, /config set/);
+});
+
+test("install 在已保存 Key 时提示已可用，不提示 set", async () => {
+  const store = memory([`${HOME}/.cursor`]);
+  let output = "";
+  const code = await runCli(["install", "cursor"], {
+    home: HOME,
+    platform: "darwin",
+    envKey: "",
+    store: {
+      ...emptyCreds(),
+      async get() { return KEY; },
+    },
+    files: store,
+    stdout: (text) => { output += text; },
+    stderr: (text) => { output += text; },
+  });
+  assert.equal(code, 0);
+  assert.equal(output.includes(KEY), false);
+  assert.match(output, /Key 已可用/);
+  assert.equal(output.includes("还没有保存 Key"), false);
 });
 
 test("install --all 只处理已检测到的 Agent", async () => {
@@ -111,6 +144,7 @@ test("install --all 只处理已检测到的 Agent", async () => {
     home: HOME,
     platform: "darwin",
     envKey: "",
+    store: emptyCreds(),
     files: store,
     stdout: () => {},
     stderr: () => {},
