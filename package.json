@@ -23,7 +23,7 @@
   },
   "scripts": {
     "start": "tsx src/index.ts",
-    "test": "tsx --test test/**/*.test.ts",
+    "test": "tsx --test test/credentials.test.ts test/install.test.ts test/requests.test.ts",
     "prepublishOnly": "npm test"
   },
   "engines": {
